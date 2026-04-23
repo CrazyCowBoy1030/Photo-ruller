@@ -1,2 +1,2 @@
 # Photo-ruller
-PR pozwala zmierzyć odległość na zdjęciu
+PR pozwala zmierzyć odległość na zdjęciu.
