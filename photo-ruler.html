@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photo Ruler</title>
+  <link rel="preconnect" href="https://api.fontshare.com" />
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+  <style>
+    :root, [data-theme="light"] {
+      --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+      --text-sm: clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+      --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+      --text-lg: clamp(1.125rem, 1rem + 0.75vw, 1.5rem);
+      --text-xl: clamp(1.5rem, 1.2rem + 1.25vw, 2rem);
+      --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem; --space-4: 1rem; --space-5: 1.25rem; --space-6: 1.5rem; --space-8: 2rem; --space-10: 2.5rem;
+      --color-bg: #f7f6f2; --color-surface: #f9f8f5; --color-surface-2: #fbfbf9; --color-surface-offset: #f3f0ec; --color-border: #d4d1ca;
+      --color-text: #28251d; --color-text-muted: #6f6d67; --color-text-faint: #9f9d98; --color-text-inverse: #f9f8f4;
+      --color-primary: #01696f; --color-primary-hover: #0c4e54; --color-primary-highlight: #cedcd8;
+      --color-blue: #006494; --color-success: #437a22; --color-warning: #964219; --color-error: #a12c7b;
+      --radius-sm: 0.375rem; --radius-md: 0.5rem; --radius-lg: 0.75rem; --radius-xl: 1rem; --radius-full: 9999px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.06); --shadow-md: 0 8px 24px rgba(0,0,0,.08);
+      --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+      --font-body: 'Satoshi', Inter, system-ui, sans-serif;
+    }
+    [data-theme="dark"] {
+      --color-bg: #171614; --color-surface: #1c1b19; --color-surface-2: #201f1d; --color-surface-offset: #22211f; --color-border: #393836;
+      --color-text: #cdccca; --color-text-muted: #9a9895; --color-text-faint: #6a6967; --color-text-inverse: #171614;
+      --color-primary: #4f98a3; --color-primary-hover: #227f8b; --color-primary-highlight: #313b3b;
+      --color-blue: #5591c7; --color-success: #6daa45; --color-warning: #bb653b; --color-error: #d163a7;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.25); --shadow-md: 0 8px 24px rgba(0,0,0,.35);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      min-height: 100dvh; font-family: var(--font-body); background: var(--color-bg); color: var(--color-text);
+      font-size: var(--text-base); line-height: 1.5;
+    }
+    button, input, select { font: inherit; }
+    button {
+      border: 1px solid color-mix(in oklab, var(--color-text) 12%, transparent);
+      background: var(--color-surface); color: var(--color-text); border-radius: var(--radius-md); padding: 0.8rem 1rem;
+      cursor: pointer; transition: background var(--transition), border-color var(--transition), transform var(--transition);
+      min-height: 44px;
+    }
+    button:hover { background: var(--color-surface-2); }
+    button:active { transform: translateY(1px); }
+    button.primary { background: var(--color-primary); color: var(--color-text-inverse); border-color: transparent; }
+    button.primary:hover { background: var(--color-primary-hover); }
+    input, select {
+      width: 100%; min-height: 44px; border-radius: var(--radius-md); border: 1px solid var(--color-border);
+      background: var(--color-surface-2); color: var(--color-text); padding: 0.8rem 0.9rem;
+    }
+    .app {
+      display: grid; grid-template-columns: 360px minmax(0,1fr); height: 100dvh;
+    }
+    .panel {
+      overflow: auto; background: linear-gradient(180deg, var(--color-surface), var(--color-surface-offset));
+      border-right: 1px solid color-mix(in oklab, var(--color-text) 10%, transparent); padding: var(--space-6);
+    }
+    .canvas-wrap {
+      position: relative; min-width: 0; background:
+        linear-gradient(45deg, color-mix(in oklab, var(--color-text) 4%, transparent) 25%, transparent 25%),
+        linear-gradient(-45deg, color-mix(in oklab, var(--color-text) 4%, transparent) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, color-mix(in oklab, var(--color-text) 4%, transparent) 75%),
+        linear-gradient(-45deg, transparent 75%, color-mix(in oklab, var(--color-text) 4%, transparent) 75%);
+      background-size: 28px 28px; background-position: 0 0, 0 14px, 14px -14px, -14px 0;
+    }
+    .toolbar { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-6); }
+    .card { background: var(--color-surface-2); border: 1px solid color-mix(in oklab, var(--color-text) 10%, transparent); border-radius: var(--radius-lg); padding: var(--space-5); box-shadow: var(--shadow-sm); }
+    .stack { display: grid; gap: var(--space-4); }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+    .headline { font-size: var(--text-xl); line-height: 1.1; font-weight: 700; margin: 0 0 var(--space-2); }
+    .muted { color: var(--color-text-muted); }
+    .tiny { font-size: var(--text-xs); color: var(--color-text-muted); }
+    .mode-toggle { margin-left: auto; width: 44px; display: grid; place-items: center; padding: 0; }
+    .mode-pill {
+      display: inline-flex; align-items: center; gap: .5rem; font-size: var(--text-sm); background: var(--color-primary-highlight); color: var(--color-text);
+      border-radius: var(--radius-full); padding: .35rem .7rem; width: fit-content;
+    }
+    .pill { display:inline-flex; align-items:center; gap:.45rem; border-radius:var(--radius-full); padding:.3rem .65rem; font-size:var(--text-xs); background:var(--color-surface-offset); }
+    .pill::before { content:''; width:.55rem; height:.55rem; border-radius:999px; background: var(--dot, var(--color-primary)); }
+    .actions { display:flex; gap: var(--space-3); flex-wrap:wrap; }
+    .results { display:grid; gap:var(--space-3); }
+    .measurement-item { padding: .85rem .95rem; border-radius: var(--radius-md); background: var(--color-surface); border: 1px solid color-mix(in oklab, var(--color-text) 8%, transparent); }
+    .measurement-item strong { display:block; font-size: var(--text-sm); }
+    .measurement-item span { color: var(--color-text-muted); font-size: var(--text-sm); }
+    canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
+    .overlay {
+      position: absolute; left: 16px; right: 16px; bottom: 16px; display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+      pointer-events:none;
+    }
+    .hud { pointer-events:none; background: color-mix(in oklab, var(--color-surface) 82%, transparent); backdrop-filter: blur(10px); border: 1px solid color-mix(in oklab, var(--color-text) 10%, transparent); border-radius: var(--radius-lg); padding: .7rem .9rem; box-shadow: var(--shadow-md); }
+    .dropzone {
+      border: 1.5px dashed color-mix(in oklab, var(--color-primary) 40%, var(--color-border)); padding: var(--space-5); border-radius: var(--radius-lg);
+      background: color-mix(in oklab, var(--color-primary-highlight) 50%, var(--color-surface));
+    }
+    .dropzone.drag { border-color: var(--color-primary); background: color-mix(in oklab, var(--color-primary-highlight) 75%, var(--color-surface)); }
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      .panel { border-right: 0; border-bottom: 1px solid color-mix(in oklab, var(--color-text) 10%, transparent); max-height: 48dvh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="panel">
+      <div class="toolbar">
+        <div>
+          <h1 class="headline">Photo Ruler</h1>
+          <div class="muted">Calibrate once, then measure anything in the image.</div>
+        </div>
+        <button class="mode-toggle" data-theme-toggle aria-label="Switch theme" title="Switch theme">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+
+      <div class="stack">
+        <section class="card dropzone" id="dropzone">
+          <div class="stack">
+            <div class="mode-pill">Import image</div>
+            <input type="file" id="fileInput" accept="image/*" />
+            <div class="tiny">You can also drag and drop an image here.</div>
+          </div>
+        </section>
+
+        <section class="card stack">
+          <div>
+            <div class="pill" style="--dot: var(--color-blue);">1. Calibration</div>
+            <p class="tiny">Click two points on a known distance in the photo, then enter the real length.</p>
+          </div>
+          <div class="row">
+            <div>
+              <label class="tiny" for="knownLength">Known length</label>
+              <input id="knownLength" type="number" min="0" step="any" placeholder="e.g. 120" />
+            </div>
+            <div>
+              <label class="tiny" for="knownUnit">Unit</label>
+              <input id="knownUnit" type="text" value="mm" placeholder="mm, cm, in" />
+            </div>
+          </div>
+          <div class="actions">
+            <button id="calibrateBtn" class="primary">Set calibration mode</button>
+            <button id="clearCalibrationBtn">Clear calibration</button>
+          </div>
+          <div class="tiny" id="calibrationStatus">No calibration yet.</div>
+        </section>
+
+        <section class="card stack">
+          <div>
+            <div class="pill" style="--dot: var(--color-success);">2. Measure</div>
+            <p class="tiny">After calibration, click two points to get real-world distance.</p>
+          </div>
+          <div class="actions">
+            <button id="measureBtn" class="primary">Set measure mode</button>
+            <button id="undoBtn">Undo last</button>
+            <button id="clearMeasuresBtn">Clear measures</button>
+          </div>
+          <div class="tiny">Scroll to zoom. Hold left mouse button and drag to pan. A short click sets a point.</div>
+        </section>
+
+        <section class="card stack">
+          <div class="pill" style="--dot: var(--color-warning);">Results</div>
+          <div class="results" id="measurementsList">
+            <div class="measurement-item"><strong>No measurements yet</strong><span>Load an image, calibrate it, then measure.</span></div>
+          </div>
+        </section>
+      </div>
+    </aside>
+
+    <main class="canvas-wrap" id="canvasWrap">
+      <canvas id="canvas"></canvas>
+      <div class="overlay">
+        <div class="hud" id="modeHud">Mode: calibration</div>
+        <div class="hud" id="zoomHud">Zoom: 100%</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      const canvasWrap = document.getElementById('canvasWrap');
+      const fileInput = document.getElementById('fileInput');
+      const dropzone = document.getElementById('dropzone');
+      const knownLengthInput = document.getElementById('knownLength');
+      const knownUnitInput = document.getElementById('knownUnit');
+      const calibrateBtn = document.getElementById('calibrateBtn');
+      const clearCalibrationBtn = document.getElementById('clearCalibrationBtn');
+      const measureBtn = document.getElementById('measureBtn');
+      const undoBtn = document.getElementById('undoBtn');
+      const clearMeasuresBtn = document.getElementById('clearMeasuresBtn');
+      const calibrationStatus = document.getElementById('calibrationStatus');
+      const measurementsList = document.getElementById('measurementsList');
+      const modeHud = document.getElementById('modeHud');
+      const zoomHud = document.getElementById('zoomHud');
+      const themeToggle = document.querySelector('[data-theme-toggle]');
+
+      const state = {
+        img: null,
+        imageName: '',
+        scale: 1,
+        minScale: 0.05,
+        maxScale: 30,
+        offsetX: 0,
+        offsetY: 0,
+        mode: 'calibration',
+        draftPoints: [],
+        calibration: null,
+        measurements: [],
+        isPointerDown: false,
+        isDragging: false,
+        downX: 0,
+        downY: 0,
+        startOffsetX: 0,
+        startOffsetY: 0,
+      };
+
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        themeToggle.innerHTML = theme === 'dark'
+          ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
+          : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+      }
+      applyTheme(matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      themeToggle.addEventListener('click', () => applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+
+      function resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvasWrap.getBoundingClientRect();
+        canvas.width = Math.round(rect.width * dpr);
+        canvas.height = Math.round(rect.height * dpr);
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        draw();
+      }
+
+      function fitImage() {
+        if (!state.img) return;
+        const rect = canvasWrap.getBoundingClientRect();
+        const sx = rect.width / state.img.width;
+        const sy = rect.height / state.img.height;
+        state.scale = Math.min(sx, sy) * 0.92;
+        state.offsetX = (rect.width - state.img.width * state.scale) / 2;
+        state.offsetY = (rect.height - state.img.height * state.scale) / 2;
+        updateHud();
+      }
+
+      function imageToScreen(pt) {
+        return { x: state.offsetX + pt.x * state.scale, y: state.offsetY + pt.y * state.scale };
+      }
+
+      function screenToImage(x, y) {
+        return { x: (x - state.offsetX) / state.scale, y: (y - state.offsetY) / state.scale };
+      }
+
+      function distance(a, b) {
+        return Math.hypot(a.x - b.x, a.y - b.y);
+      }
+
+      function formatLength(value) {
+        if (!Number.isFinite(value)) return '—';
+        if (Math.abs(value) >= 100) return value.toFixed(2).replace(/\.00$/, '');
+        if (Math.abs(value) >= 10) return value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+        return value.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
+      }
+
+      function updateHud() {
+        modeHud.textContent = `Mode: ${state.mode}`;
+        zoomHud.textContent = `Zoom: ${(state.scale * 100).toFixed(0)}%`;
+      }
+
+      function updateCalibrationStatus() {
+        if (!state.calibration) {
+          calibrationStatus.textContent = 'No calibration yet.';
+          return;
+        }
+        calibrationStatus.textContent = `Calibrated: ${formatLength(state.calibration.realLength)} ${state.calibration.unit} over ${state.calibration.pixelDistance.toFixed(2)} px.`;
+      }
+
+      function renderMeasurements() {
+        if (!state.measurements.length) {
+          measurementsList.innerHTML = '<div class="measurement-item"><strong>No measurements yet</strong><span>Load an image, calibrate it, then measure.</span></div>';
+          return;
+        }
+        measurementsList.innerHTML = state.measurements.map((m, i) => `
+          <div class="measurement-item">
+            <strong>#${i + 1}: ${formatLength(m.realDistance)} ${m.unit}</strong>
+            <span>${m.pixelDistance.toFixed(2)} px between selected points</span>
+          </div>
+        `).join('');
+      }
+
+      function setMode(mode) {
+        state.mode = mode;
+        state.draftPoints = [];
+        updateHud();
+        draw();
+      }
+
+      function commitDraft() {
+        if (state.draftPoints.length !== 2) return;
+        const [a, b] = state.draftPoints;
+        const pixelDistance = distance(a, b);
+        if (pixelDistance < 0.5) {
+          state.draftPoints = [];
+          draw();
+          return;
+        }
+
+        if (state.mode === 'calibration') {
+          const realLength = parseFloat(knownLengthInput.value);
+          const unit = (knownUnitInput.value || '').trim() || 'units';
+          if (!(realLength > 0)) {
+            alert('Enter a known length greater than zero first.');
+            return;
+          }
+          state.calibration = { a, b, pixelDistance, realLength, unit, pixelsPerUnit: pixelDistance / realLength };
+          updateCalibrationStatus();
+        } else if (state.mode === 'measure') {
+          if (!state.calibration) {
+            alert('Calibrate the image first.');
+            return;
+          }
+          const realDistance = pixelDistance / state.calibration.pixelsPerUnit;
+          state.measurements.unshift({ a, b, pixelDistance, realDistance, unit: state.calibration.unit });
+          renderMeasurements();
+        }
+        state.draftPoints = [];
+        draw();
+      }
+
+      function drawPoint(pt, color, label) {
+        const p = imageToScreen(pt);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 5.5, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'white';
+        ctx.stroke();
+        if (label) {
+          ctx.font = '12px Satoshi, sans-serif';
+          ctx.fillStyle = color;
+          ctx.fillText(label, p.x + 8, p.y - 8);
+        }
+      }
+
+      function drawSegment(a, b, color, text) {
+        const p1 = imageToScreen(a), p2 = imageToScreen(b);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+        const mx = (p1.x + p2.x) / 2;
+        const my = (p1.y + p2.y) / 2;
+        if (text) {
+          ctx.font = '13px Satoshi, sans-serif';
+          const padX = 8, padY = 6;
+          const w = ctx.measureText(text).width;
+          ctx.fillStyle = 'rgba(20,20,20,0.78)';
+          ctx.fillRect(mx - w / 2 - padX, my - 14, w + padX * 2, 22);
+          ctx.fillStyle = '#fff';
+          ctx.fillText(text, mx - w / 2, my + 1);
+        }
+      }
+
+      function draw() {
+        const rect = canvasWrap.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        if (!state.img) {
+          ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--color-text-muted');
+          ctx.font = '16px Satoshi, sans-serif';
+          ctx.fillText('Import an image to begin.', 28, 38);
+          return;
+        }
+
+        ctx.drawImage(state.img, state.offsetX, state.offsetY, state.img.width * state.scale, state.img.height * state.scale);
+
+        if (state.calibration) {
+          drawSegment(state.calibration.a, state.calibration.b, '#1f7ae0', `${formatLength(state.calibration.realLength)} ${state.calibration.unit}`);
+          drawPoint(state.calibration.a, '#1f7ae0', 'C1');
+          drawPoint(state.calibration.b, '#1f7ae0', 'C2');
+        }
+
+        state.measurements.forEach((m, i) => {
+          const color = i === 0 ? '#2f9d48' : '#c17a1b';
+          drawSegment(m.a, m.b, color, `${formatLength(m.realDistance)} ${m.unit}`);
+          drawPoint(m.a, color, 'M1');
+          drawPoint(m.b, color, 'M2');
+        });
+
+        if (state.draftPoints.length >= 1) {
+          drawPoint(state.draftPoints[0], '#cc2d7f', 'P1');
+        }
+        if (state.draftPoints.length === 2) {
+          const px = distance(state.draftPoints[0], state.draftPoints[1]);
+          let label = `${px.toFixed(2)} px`;
+          if (state.mode === 'measure' && state.calibration) label = `${formatLength(px / state.calibration.pixelsPerUnit)} ${state.calibration.unit}`;
+          drawSegment(state.draftPoints[0], state.draftPoints[1], '#cc2d7f', label);
+          drawPoint(state.draftPoints[1], '#cc2d7f', 'P2');
+        }
+      }
+
+      function addPointFromEvent(event) {
+        if (!state.img) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const imgPt = screenToImage(x, y);
+        if (imgPt.x < 0 || imgPt.y < 0 || imgPt.x > state.img.width || imgPt.y > state.img.height) return;
+        state.draftPoints.push(imgPt);
+        if (state.draftPoints.length === 2) commitDraft();
+        draw();
+      }
+
+      canvas.addEventListener('mousedown', (event) => {
+        state.isPointerDown = true;
+        state.isDragging = false;
+        state.downX = event.clientX;
+        state.downY = event.clientY;
+        state.startOffsetX = state.offsetX;
+        state.startOffsetY = state.offsetY;
+      });
+
+      window.addEventListener('mousemove', (event) => {
+        if (!state.isPointerDown || !state.img) return;
+        const dx = event.clientX - state.downX;
+        const dy = event.clientY - state.downY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) state.isDragging = true;
+        if (state.isDragging) {
+          state.offsetX = state.startOffsetX + dx;
+          state.offsetY = state.startOffsetY + dy;
+          draw();
+        }
+      });
+
+      window.addEventListener('mouseup', (event) => {
+        if (!state.isPointerDown) return;
+        const wasDragging = state.isDragging;
+        state.isPointerDown = false;
+        state.isDragging = false;
+        if (!wasDragging) addPointFromEvent(event);
+      });
+
+      canvas.addEventListener('wheel', (event) => {
+        event.preventDefault();
+        if (!state.img) return;
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+        const before = screenToImage(mouseX, mouseY);
+        const factor = event.deltaY < 0 ? 1.1 : 0.9;
+        state.scale = Math.min(state.maxScale, Math.max(state.minScale, state.scale * factor));
+        state.offsetX = mouseX - before.x * state.scale;
+        state.offsetY = mouseY - before.y * state.scale;
+        updateHud();
+        draw();
+      }, { passive: false });
+
+      function loadFile(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          state.img = img;
+          state.imageName = file.name;
+          state.draftPoints = [];
+          state.calibration = null;
+          state.measurements = [];
+          updateCalibrationStatus();
+          renderMeasurements();
+          fitImage();
+          draw();
+          URL.revokeObjectURL(url);
+        };
+        img.src = url;
+      }
+
+      fileInput.addEventListener('change', (e) => loadFile(e.target.files[0]));
+      ['dragenter', 'dragover'].forEach(type => dropzone.addEventListener(type, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+      ['dragleave', 'drop'].forEach(type => dropzone.addEventListener(type, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+      dropzone.addEventListener('drop', e => loadFile(e.dataTransfer.files[0]));
+
+      calibrateBtn.addEventListener('click', () => setMode('calibration'));
+      measureBtn.addEventListener('click', () => setMode('measure'));
+      clearCalibrationBtn.addEventListener('click', () => { state.calibration = null; state.draftPoints = []; updateCalibrationStatus(); draw(); });
+      clearMeasuresBtn.addEventListener('click', () => { state.measurements = []; state.draftPoints = []; renderMeasurements(); draw(); });
+      undoBtn.addEventListener('click', () => {
+        if (state.draftPoints.length) state.draftPoints.pop();
+        else state.measurements.shift();
+        renderMeasurements();
+        draw();
+      });
+
+      window.addEventListener('resize', resizeCanvas);
+      resizeCanvas();
+      updateHud();
+      updateCalibrationStatus();
+      renderMeasurements();
+    })();
+  </script>
+</body>
+</html>
